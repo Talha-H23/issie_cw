@@ -91,6 +91,7 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -237,38 +238,28 @@ module HLPTick3 =
 
             // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-
-            let rotateSymbolTransform (sym: SymbolT.Symbol) =
-                match sym.Component.Label = symLabel with
-                | true -> RotateScale.rotateSymbolByDegree rotate sym
-                | false -> sym
-
-            let updatedSymbols =
-                model.Wire.Symbol.Symbols
-                |> Map.map rotateSymbolTransform
-
-
-
-
+            let symLabel = String.toUpper symLabel
+            let symbol = model.Wire.Symbol.Symbols
+            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+            | None -> model
 
 
             // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            let transformSymbol (st: STransform) =
-                { st with flipped = (flip = SymbolT.FlipType.FlipHorizontal || flip = SymbolT.FlipType.FlipVertical) }
-
-            let flipSymbolTransform (sym: SymbolT.Model) =
-                match sym.Label = symLabel with
-                | true -> { sym with Info = Some { sym.Info with STransform = transformSymbol sym.Info } }
-                | false -> sym
-
-            let updatedSymbols =
-                model.Wire.Symbol.Symbols
-                |> Map.map flipSymbolTransform
-
-            model
-            |> Optic.set (symbolModel_ >-> SymbolT.symbols_) updatedSymbols
-            |> SheetUpdate.updateBoundingBoxes
+            let symLabel = String.toUpper symLabel
+            let symbol = model.Wire.Symbol.Symbols
+            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+            | None -> model
 
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
@@ -357,26 +348,22 @@ module HLPTick3 =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-    let generateSampleData : Gen<(XYPos * XYPos)> =
+    let generateSampleData =
 
         // Define the range of positions for the variable component
-        let secondComponentPositions =
-            // Sample positions for the second component
-            [-100..10..100] |> List.collect (fun x ->
-                     [-100..10..100] |> List.map (fun y -> { X = float x; Y = float y }))
-
-
-        // Generate pairs of positions for the fixed component (component 1) and variable component (component 2)
-        product (fun pos1 pos2 -> (pos1, pos2)) (middleOfSheet) (fromList secondComponentPositions)
+        product (fun x y -> middleOfSheet + {X = float x; Y = float y})
+            (fromList [-100..20..100])
+            (fromList [-100..20..100])
+            
 
     // Define a function to check if two components overlap
-    let filterOverlap ((pos1, pos2): XYPos * XYPos) =
+    let filterOverlap (pos1: XYPos) =
         // Define the size of the components
-        let componentSize = 10.0 // Adjust as needed
-
+        let componentSize = 10.0
         // Check if the components overlap based on their positions and size
-        let overlapX = abs(pos1.X - pos2.X) < componentSize
-        let overlapY = abs(pos1.Y - pos2.Y) < componentSize
+        let overlapX = abs(pos1.X - middleOfSheet.X) < componentSize
+        let overlapY = abs(pos1.Y - middleOfSheet.Y) < componentSize
+        
 
         // Return true if there's no overlap, false otherwise
         not (overlapX && overlapY)
@@ -394,21 +381,18 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
-    let makeTest5Circuit ((pos1, pos2): XYPos * XYPos) =
+    let makeTest5Circuit (andPos: XYPos) =
         initSheetModel
         |> placeSymbol "Component1" (GateN(And,2)) middleOfSheet
-        |> Result.bind (placeSymbol "Component2" DFF pos2)
+        |> Result.bind (placeSymbol "Component2" DFF andPos)
         |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
 
 
-    let makeTest5Circuit ((pos1, pos2): XYPos * XYPos) =
-        // Randomly choose rotation and flip for each component
- 
-
-        // Place symbols with random rotation and flip
+    let makeTest6Circuit ((pos1, pos2): XYPos * XYPos) =
+  
         initSheetModel
         |> placeSymbol "Component1" (GateN(And,2)) pos1'
         |> Result.bind (rotateSymbol "Component1" component1Rotation)
@@ -420,6 +404,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
+        
 
 
 //------------------------------------------------------------------------------------------------//
