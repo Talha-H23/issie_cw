@@ -348,29 +348,46 @@ module HLPTick3 =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-    let generateSampleData =
 
-        // Define the range of positions for the variable component
+    //Q7
+    let generateSampleData =
         product (fun x y -> middleOfSheet + {X = float x; Y = float y})
             (fromList [-100..20..100])
             (fromList [-100..20..100])
             
 
-    // Define a function to check if two components overlap
     let filterOverlap (pos1: XYPos) =
         // Define the size of the components
         let componentSize = 10.0
-        // Check if the components overlap based on their positions and size
+        
         let overlapX = abs(pos1.X - middleOfSheet.X) < componentSize
         let overlapY = abs(pos1.Y - middleOfSheet.Y) < componentSize
         
-
         // Return true if there's no overlap, false otherwise
         not (overlapX && overlapY)
 
     let filteredSampleData =
         generateSampleData
         |> GenerateData.filter filterOverlap
+    //Q7
+
+    //Q10
+    let randomSel arr =
+        let shuffledArray = shuffleA arr
+        shuffledArray.[0] //first element from shuffled array
+
+    let Rotations =
+        [|Degree0; Degree90; Degree180; Degree270|]
+
+    let Flips = [|SymbolT.FlipHorizontal|]
+
+    let andRotation = randomSel Rotations
+    let dffRotation = randomSel Rotations
+    let andFlip = randomSel Flips
+    let dffFlip = randomSel Flips
+    //Q10
+
+
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -383,27 +400,42 @@ module HLPTick3 =
 
     let makeTest5Circuit (andPos: XYPos) =
         initSheetModel
-        |> placeSymbol "Component1" (GateN(And,2)) middleOfSheet
-        |> Result.bind (placeSymbol "Component2" DFF andPos)
+        |> placeSymbol "Component1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
 
 
-    let makeTest6Circuit ((pos1, pos2): XYPos * XYPos) =
+    let makeTest6Circuit (andPos: XYPos) =
+        let randomSel arr =
+            let shuffledArray = shuffleA arr
+            shuffledArray.[0] //first element from shuffled array
+
+        let Rotations =
+            [|Degree90; Degree270|]
+
+        let Flips = [|SymbolT.FlipHorizontal|]
+
+        let andRotation = randomSel Rotations
+        let dffRotation = randomSel Rotations
+        let andFlip = randomSel Flips
+        let dffFlip = randomSel Flips
   
+        
         initSheetModel
-        |> placeSymbol "Component1" (GateN(And,2)) pos1'
-        |> Result.bind (rotateSymbol "Component1" component1Rotation)
-        |> Result.bind (flipSymbol "Component1" component1Flip)
-        |> Result.bind (placeSymbol "Component2" DFF pos2')
-        |> Result.bind (rotateSymbol "Component2" component2Rotation)
-        |> Result.bind (flipSymbol "Component2" component2Flip)
+        |> placeSymbol "Component1" (GateN(And,2)) andPos
+        |> Result.bind (rotateSymbol "Component1" andRotation)
+        |> Result.bind (flipSymbol "Component1" andFlip)
+        |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
+        |> Result.bind (rotateSymbol "Component2" dffRotation)
+        |> Result.bind (flipSymbol "Component2" dffFlip)
         |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
+        
         
 
 
@@ -523,7 +555,17 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                 "Horizontally positioned AND + DFF: fail on wires intersect"
+                 firstSample
+                 filteredSampleData
+                 makeTest6Circuit
+                 Asserts.failOnWireIntersectsSymbol
+                 dispatch
+            |> recordPositionInTest testNum dispatch
 
+            
 
 
         /// List of tests available which can be run ftom Issie File Menu.
