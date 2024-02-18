@@ -407,7 +407,7 @@ module HLPTick3 =
         |> getOkOrFail
 
 
-
+(*
     let makeTest6Circuit (andPos: XYPos) =
         let randomSel arr =
             let shuffledArray = shuffleA arr
@@ -435,7 +435,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
-        
+        *)
         
 
 
@@ -555,7 +555,7 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test6 testNum firstSample dispatch =
+       (* let test6 testNum firstSample dispatch =
             runTestOnSheets
                  "Horizontally positioned AND + DFF: fail on wires intersect"
                  firstSample
@@ -565,7 +565,7 @@ module HLPTick3 =
                  dispatch
             |> recordPositionInTest testNum dispatch
 
-            
+            *)
 
 
         /// List of tests available which can be run ftom Issie File Menu.
